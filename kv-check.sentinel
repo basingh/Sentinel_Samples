@@ -1,0 +1,24 @@
+## this policy is to block any user to use kv secret engine mounted on /secret path
+import "strings"
+
+# Only care about create, update, and delete operations against secret path
+precond = rule {
+    request.operation in ["read", "sudo", "create", "update", "delete"] and
+    strings.has_prefix(request.path, "secret/")
+}
+
+kvpathcheck = func() {
+  if (request.path contains "secret"){
+    return false
+  }
+    error("root is allowed access")
+  }
+# Check 
+kvcheck = rule {
+   kvpathcheck()
+}
+
+# Check the precondition before execute the cidrcheck
+main = rule when precond {
+    kvcheck
+}
