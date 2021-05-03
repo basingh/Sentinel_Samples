@@ -1,0 +1,39 @@
+## this policy is to block any user apart from specific entity id to access the secret.
+import "strings"
+
+# Only care about create, update, and delete operations against jca_user_rw_prod path
+precond = rule {
+    request.operation in ["read", "sudo", "create", "update", "delete"] and
+    strings.has_prefix(request.path, "teams/jca/database/jca_alpha/passwords/jca_user_rw_prod")
+}
+
+print("Requester:", identity.entity.id)
+print("Request path:", request.path)
+print("Request operation:", request.operation)
+
+kvpathcheck = func() {
+    if identity.entity.id is "2787b9e8-a581-007b-8bba-b7b8d4fd5231" {
+          print("*********Allowed user, allow secret access*********")
+          return true
+    } else {
+         print("*********Only allowed user can access this secret*********")
+         return false
+    }
+}
+
+kvcheck = rule {
+   kvpathcheck()
+}
+
+# Check the precondition before execute the cidrcheck
+main = rule when precond {
+    kvcheck
+}
+
+
+###### policy end, below is how to set the policy
+vagrant@v1:~$ POLICY=$(base64 kvrestrict.sentinel)
+vagrant@v1:~$ vault write sys/policies/egp/kv-check \ 
+              policy="${POLICY}" \
+              paths="teams/*" \
+              enforcement_level="hard-mandatory"
